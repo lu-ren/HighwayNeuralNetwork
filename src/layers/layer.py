@@ -1,3 +1,21 @@
+from __future__ import print_function
+
+__docformat__ = 'restructedtext en'
+
+
+import os
+import sys
+import timeit
+
+import numpy
+import scipy.io
+
+import theano
+import theano.tensor as T
+
+
+
+
 class HighwayLayer(object):
 
     def __init__(self, rng, input, n_in, n_out, W=None, b=None,

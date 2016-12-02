@@ -44,10 +44,11 @@ def shared_dataset(data_xy, borrow=True):
 
 def load_data():
     dataset = 'mnist.pkl.gz'
-    from six.moves import urllib
-    origin = ('http://deeplearning.net/data/mnist/' + dataset)
-    print('Downloading data from %s' % origin)
-    urllib.request.urlretrieve(origin, dataset)
+    if not os.path.isfile(dataset):
+        from six.moves import urllib
+        origin = ('http://deeplearning.net/data/mnist/' + dataset)
+        print('Downloading data from %s' % origin)
+        urllib.request.urlretrieve(origin, dataset)
     f = gzip.open('mnist.pkl.gz', 'rb')
     
     train_set, valid_set, test_set = cPickle.load(f)

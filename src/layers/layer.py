@@ -1,6 +1,9 @@
+import theano
+import theano.tensor as T
+
 class HighwayLayer(object):
 
-    def __init__(self, rng, input, n_in, n_out, W=None, b=None,
+    def __init__(self, rng, input, n_in, n_out, W=None, b=None, W_T=None, b_T=None,
                  activation=T.tanh):
         """
         Typical hidden layer of a MLP: units are fully-connected and have
@@ -54,21 +57,58 @@ class HighwayLayer(object):
 
             W = theano.shared(value=W_values, name='W', borrow=True)
 
+
+        # Initializing W_T values
+        if W_T is None:
+            W_T_values = numpy.asarray(
+                rng.uniform(
+                    low=-numpy.sqrt(6. / (n_in + n_out)),
+                    high=numpy.sqrt(6. / (n_in + n_out)),
+                    size=(n_in, n_out)
+                ),
+                dtype=theano.config.floatX
+            )
+            if activation == theano.tensor.nnet.sigmoid:
+                W_T_values *= 4
+
+            W_T = theano.shared(value=W_values, name='W_T', borrow=True)
+
         if b is None:
             b_values = numpy.zeros((n_out,), dtype=theano.config.floatX)
             b = theano.shared(value=b_values, name='b', borrow=True)
 
+        # Initializaing b_T values
+        if b_T is None:
+            b_T_values = numpy.asaarray(
+                    rng.uniform(
+                        low = -10,
+                        high = -1,
+                        size=(n_out,)
+                    ),
+                    dtype=theano.config.floatX
+            b_T = theano.shared(value=b_values, name='b_T', borrow=True)
+
         self.W = W
         self.b = b
 
-        lin_output = T.dot(input, self.W) + self.b
+        self.W_T = W_T
+        self.b_T = b_T
+
+        H = T.dot(input, self.W) + self.b
+
+        T = T.dot(input, self.W_T) + self.b_T
+
+        c_intermediate = (1 - (T.dot(input, self.W_T) + self.b_T))
+        C = T.dot(input, c_intermediate)
+
+        lin_output = T.dot(H, T) + C
+
         self.output = (
             lin_output if activation is None
             else activation(lin_output)
         )
         # parameters of the model
-        self.params = [self.W, self.b]
-        
+        self.params = [self.W, self.b, self.W_T, self.b_T]
 
 class LogisticRegression(object):
     """Multi-class Logistic Regression Class

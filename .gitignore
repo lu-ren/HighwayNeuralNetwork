@@ -1,2 +1,4 @@
 data
 src/mnist.pkl.gz
+src/*.pyc
+src/*checkpoints

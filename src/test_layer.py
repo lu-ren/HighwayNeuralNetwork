@@ -62,7 +62,7 @@ class myHighway(object):
         self.hidden_list = [self.layer0]
         
         for i in xrange(n_layers -1):
-            x = HiddenLayer(
+            x = HighwayLayer(
                 rng=rng,
                 input=self.hidden_list[-1].output,
                 n_in=n_hidden,

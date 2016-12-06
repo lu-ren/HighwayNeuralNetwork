@@ -178,7 +178,7 @@ def test_network(n_layers, activation = T.tanh, learning_rate=0.01, L1_reg=0.00,
     y = T.ivector('y')  # the labels are presented as 1D vector of
                         # [int] labels
 
-    rng = numpy.random.RandomState(1234)
+    rng = numpy.random.RandomState(277164956)
     """
     # construct the MLP class
     classifier = MLP(
@@ -251,7 +251,7 @@ def test_network(n_layers, activation = T.tanh, learning_rate=0.01, L1_reg=0.00,
     """
     # specify how to update the parameters of the model as a list of
     # (variable, update expression) pairs
-    momentum =theano.shared(numpy.cast[theano.config.floatX](0.5), name='momentum')
+    momentum =theano.shared(numpy.cast[theano.config.floatX](0.7683542317733868), name='momentum')
     updates = []
     for param, gparam in  zip(classifier.params, gparams):
         param_update = theano.shared(param.get_value()*numpy.cast[theano.config.floatX](0.))    
@@ -365,7 +365,12 @@ def test_network(n_layers, activation = T.tanh, learning_rate=0.01, L1_reg=0.00,
            os.path.split(__file__)[1] +
            ' ran for %.2fm' % ((end_time - start_time) / 60.)), file=sys.stderr)
     
-    numpy.savetxt("validation.csv", val_matrix, delimiter=",")
-    numpy.savetxt("test.csv", test_matrix, delimiter=",")
+    numpy.savetxt("validation" + str(end_time) + ".csv", val_matrix, delimiter=",")
+    numpy.savetxt("test" + str(end_time) + ".csv", test_matrix, delimiter=",")
     
     return val_matrix, test_matrix
+
+if __name__ == '__main__':
+
+    test_network(n_hidden = 71, Highway = False, n_layers = 10, n_epochs = 400, verbose = True, batch_size=20, activation = T.nnet.relu, learning_rate = 0.17762776349125)
+

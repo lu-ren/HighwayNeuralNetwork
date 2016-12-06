@@ -28,7 +28,7 @@ class myHighway(object):
     class).
     """
 
-    def __init__(self, rng, input, n_in, n_hidden, n_out, n_layers, activation):
+    def __init__(self, rng, input, n_in, n_hidden, n_out, n_layers, activation, Highway):
         """Initialize the parameters for the multilayer perceptron
 
         :type rng: numpy.random.RandomState
@@ -62,13 +62,22 @@ class myHighway(object):
         self.hidden_list = [self.layer0]
         
         for i in xrange(n_layers -1):
-            x = HighwayLayer(
-                rng=rng,
-                input=self.hidden_list[-1].output,
-                n_in=n_hidden,
-                n_out=n_hidden,
-                activation=activation
-            )
+            if Highway is False:
+                x = HiddenLayer(
+                    rng=rng,
+                    input=self.hidden_list[-1].output,
+                    n_in=n_hidden,
+                    n_out=n_hidden,
+                    activation=activation
+                )
+            else :
+                x = HighwayLayer(
+                    rng=rng,
+                    input=self.hidden_list[-1].output,
+                    n_in=n_hidden,
+                    n_out=n_hidden,
+                    activation=activation
+                )
             self.hidden_list.append(x)
         
         
@@ -101,6 +110,8 @@ class myHighway(object):
         )
         # same holds for the function computing the number of errors
         self.errors = self.logRegressionLayer.errors
+        
+        #self.crossent = self.logRegressionLayer.cross_entropy
 
         # the parameters of the model are the parameters of the two layer it is
         # made out of
@@ -119,7 +130,7 @@ class myHighway(object):
 
 
 def test_network(n_layers, activation = T.tanh, learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
-             batch_size=20, n_hidden=500, verbose=False):
+             batch_size=20, n_hidden=500, verbose=False, Highway = False):
     """
     Demonstrate stochastic gradient descent optimization for a multilayer
     perceptron
@@ -186,7 +197,8 @@ def test_network(n_layers, activation = T.tanh, learning_rate=0.01, L1_reg=0.00,
         n_hidden=n_hidden,
         n_out=10,
         n_layers = n_layers,
-        activation = activation
+        activation = activation,
+        Highway = Highway
     )
 
     # the cost we minimize during training is the negative log likelihood of
@@ -203,6 +215,7 @@ def test_network(n_layers, activation = T.tanh, learning_rate=0.01, L1_reg=0.00,
     test_model = theano.function(
         inputs=[index],
         outputs=classifier.errors(y),
+        #outputs=classifier.crossent(y),
         givens={
             x: test_set_x[index * batch_size:(index + 1) * batch_size],
             y: test_set_y[index * batch_size:(index + 1) * batch_size]
@@ -212,6 +225,7 @@ def test_network(n_layers, activation = T.tanh, learning_rate=0.01, L1_reg=0.00,
     validate_model = theano.function(
         inputs=[index],
         outputs=classifier.errors(y),
+        #outputs=classifier.crossent(y),
         givens={
             x: valid_set_x[index * batch_size:(index + 1) * batch_size],
             y: valid_set_y[index * batch_size:(index + 1) * batch_size]
@@ -229,11 +243,23 @@ def test_network(n_layers, activation = T.tanh, learning_rate=0.01, L1_reg=0.00,
     # B = [b1, b2, b3, b4], zip generates a list C of same size, where each
     # element is a pair formed from the two lists :
     #    C = [(a1, b1), (a2, b2), (a3, b3), (a4, b4)]
+    """
     updates = [
         (param, param - learning_rate * gparam)
         for param, gparam in zip(classifier.params, gparams)
     ]
-
+    """
+    # specify how to update the parameters of the model as a list of
+    # (variable, update expression) pairs
+    momentum =theano.shared(numpy.cast[theano.config.floatX](0.5), name='momentum')
+    updates = []
+    for param, gparam in  zip(classifier.params, gparams):
+        param_update = theano.shared(param.get_value()*numpy.cast[theano.config.floatX](0.))    
+        updates.append((param, param - learning_rate*param_update))
+        updates.append((param_update, momentum*param_update + (numpy.cast[theano.config.floatX](1.) - momentum)*T.grad(cost, param)))
+    
+    
+    
     # compiling a Theano function `train_model` that returns the cost, but
     # in the same time updates the parameter of the model based on the rules
     # defined in `updates`
@@ -274,6 +300,9 @@ def test_network(n_layers, activation = T.tanh, learning_rate=0.01, L1_reg=0.00,
     epoch = 0
     done_looping = False
 
+    val_matrix = numpy.zeros(n_epochs)
+    test_matrix = numpy.zeros(n_epochs)
+    
     while (epoch < n_epochs) and (not done_looping):
         epoch = epoch + 1
         for minibatch_index in range(n_train_batches):
@@ -287,7 +316,7 @@ def test_network(n_layers, activation = T.tanh, learning_rate=0.01, L1_reg=0.00,
                 validation_losses = [validate_model(i) for i
                                      in range(n_valid_batches)]
                 this_validation_loss = numpy.mean(validation_losses)
-
+                val_matrix[epoch-1] = this_validation_loss
                 if verbose:
                     print(
                         'epoch %i, minibatch %i/%i, validation error %f %%' %
@@ -321,10 +350,12 @@ def test_network(n_layers, activation = T.tanh, learning_rate=0.01, L1_reg=0.00,
                                'best model %f %%') %
                               (epoch, minibatch_index + 1, n_train_batches,
                                test_score * 100.))
-
-            if patience <= iter:
-                done_looping = True
-                break
+                
+                test_matrix[epoch -1] = test_score
+                
+            #if patience <= iter:
+                #done_looping = True
+                #break
 
     end_time = timeit.default_timer()
     print(('Optimization complete. Best validation score of %f %% '
@@ -333,5 +364,8 @@ def test_network(n_layers, activation = T.tanh, learning_rate=0.01, L1_reg=0.00,
     print(('The code for file ' +
            os.path.split(__file__)[1] +
            ' ran for %.2fm' % ((end_time - start_time) / 60.)), file=sys.stderr)
-
-
+    
+    numpy.savetxt("validation.csv", val_matrix, delimiter=",")
+    numpy.savetxt("test.csv", test_matrix, delimiter=",")
+    
+    return val_matrix, test_matrix

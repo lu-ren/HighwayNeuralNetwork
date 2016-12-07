@@ -57,34 +57,40 @@ class HighwayLayer(object):
         #        We have no info for other function, so we use the same as
         #        tanh.
         if W is None:
+            std = numpy.sqrt(2.0 / n_in)
+            #a = mean - np.sqrt(3) * std
+            #b = mean + np.sqrt(3) * std
+            #return self.initializer(std=std).sample(shape)
+            
             W_values = numpy.asarray(
-                rng.uniform(
-                    low=-numpy.sqrt(6. / (n_in + n_out)),
-                    high=numpy.sqrt(6. / (n_in + n_out)),
+                rng.normal(
+                    loc=0.0,
+                    scale=std,
                     size=(n_in, n_out)
                 ),
                 dtype=theano.config.floatX
             )
-            if activation == theano.tensor.nnet.sigmoid:
-                W_values *= 4
 
             W = theano.shared(value=W_values, name='W', borrow=True)
 
 
         # Initializing W_T values
         if W_T is None:
+            std = numpy.sqrt(2.0 / n_in)
+            #a = mean - np.sqrt(3) * std
+            #b = mean + np.sqrt(3) * std
+            #return self.initializer(std=std).sample(shape)
+            
             W_T_values = numpy.asarray(
-                rng.uniform(
-                    low=-numpy.sqrt(6. / (n_in + n_out)),
-                    high=numpy.sqrt(6. / (n_in + n_out)),
+                rng.normal(
+                    loc=0.0,
+                    scale=std,
                     size=(n_in, n_out)
                 ),
                 dtype=theano.config.floatX
             )
-            if activation == theano.tensor.nnet.sigmoid:
-                W_T_values *= 4
 
-            W_T = theano.shared(value=W_values, name='W_T', borrow=True)
+            W_T = theano.shared(value=W_T_values, name='W_T', borrow=True)
 
         if b is None:
             b_values = numpy.zeros((n_out,), dtype=theano.config.floatX)
@@ -92,6 +98,8 @@ class HighwayLayer(object):
 
         # Initializaing b_T values
         if b_T is None:
+            b_T_values = -1.*numpy.ones(shape=(n_out,), dtype=theano.config.floatX)
+            """
             b_T_values = numpy.asarray(
                     rng.uniform(
                         low = -10,
@@ -99,7 +107,10 @@ class HighwayLayer(object):
                         size=(n_out,))
                     ,
                     dtype=theano.config.floatX)
-            b_T = theano.shared(value=b_values, name='b_T', borrow=True)
+            """
+            
+            
+            b_T = theano.shared(value=b_T_values, name='b_T', borrow=True)
 
         self.W = W
         self.b = b
@@ -310,16 +321,22 @@ class HiddenLayer(object):
         #        We have no info for other function, so we use the same as
         #        tanh.
         if W is None:
+            
+            std = numpy.sqrt(2.0 / n_in)
+            #a = mean - np.sqrt(3) * std
+            #b = mean + np.sqrt(3) * std
+            #return self.initializer(std=std).sample(shape)
+            
             W_values = numpy.asarray(
-                rng.uniform(
-                    low=-numpy.sqrt(6. / (n_in + n_out)),
-                    high=numpy.sqrt(6. / (n_in + n_out)),
+                rng.normal(
+                    loc=0.0,
+                    scale=std,
                     size=(n_in, n_out)
                 ),
                 dtype=theano.config.floatX
             )
-            if activation == theano.tensor.nnet.sigmoid:
-                W_values *= 4
+            #if activation == theano.tensor.nnet.sigmoid:
+            #    W_values *= 4
 
             W = theano.shared(value=W_values, name='W', borrow=True)
 

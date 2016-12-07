@@ -178,7 +178,8 @@ def test_network(n_layers, activation = T.tanh, learning_rate=0.01, L1_reg=0.00,
     y = T.ivector('y')  # the labels are presented as 1D vector of
                         # [int] labels
 
-    rng = numpy.random.RandomState(1234)
+    #rng = numpy.random.RandomState(277164956)
+    rng = numpy.random.RandomState(100)
     """
     # construct the MLP class
     classifier = MLP(
@@ -209,7 +210,7 @@ def test_network(n_layers, activation = T.tanh, learning_rate=0.01, L1_reg=0.00,
         + L1_reg * classifier.L1
         + L2_reg * classifier.L2_sqr
     )
-
+   
     # compiling a Theano function that computes the mistakes that are made
     # by the model on a minibatch
     test_model = theano.function(
@@ -219,7 +220,8 @@ def test_network(n_layers, activation = T.tanh, learning_rate=0.01, L1_reg=0.00,
         givens={
             x: test_set_x[index * batch_size:(index + 1) * batch_size],
             y: test_set_y[index * batch_size:(index + 1) * batch_size]
-        }
+        },
+        allow_input_downcast=True
     )
 
     validate_model = theano.function(
@@ -229,7 +231,8 @@ def test_network(n_layers, activation = T.tanh, learning_rate=0.01, L1_reg=0.00,
         givens={
             x: valid_set_x[index * batch_size:(index + 1) * batch_size],
             y: valid_set_y[index * batch_size:(index + 1) * batch_size]
-        }
+        },
+        allow_input_downcast=True
     )
 
     # compute the gradient of cost with respect to theta (sotred in params)
@@ -251,11 +254,13 @@ def test_network(n_layers, activation = T.tanh, learning_rate=0.01, L1_reg=0.00,
     """
     # specify how to update the parameters of the model as a list of
     # (variable, update expression) pairs
-    momentum =theano.shared(numpy.cast[theano.config.floatX](0.5), name='momentum')
+    lr = T.fscalar('lr')
+    
+    momentum =theano.shared(numpy.cast[theano.config.floatX](0.7683542317733868), name='momentum')
     updates = []
     for param, gparam in  zip(classifier.params, gparams):
         param_update = theano.shared(param.get_value()*numpy.cast[theano.config.floatX](0.))    
-        updates.append((param, param - learning_rate*param_update))
+        updates.append((param, param - lr*param_update))
         updates.append((param_update, momentum*param_update + (numpy.cast[theano.config.floatX](1.) - momentum)*T.grad(cost, param)))
     
     
@@ -264,15 +269,27 @@ def test_network(n_layers, activation = T.tanh, learning_rate=0.01, L1_reg=0.00,
     # in the same time updates the parameter of the model based on the rules
     # defined in `updates`
     train_model = theano.function(
-        inputs=[index],
+        inputs=[index, lr],
         outputs=cost,
         updates=updates,
         givens={
             x: train_set_x[index * batch_size: (index + 1) * batch_size],
             y: train_set_y[index * batch_size: (index + 1) * batch_size]
-        }
+        },
+        allow_input_downcast=True
     )
-
+    
+    train_loss = theano.function(
+        inputs=[index,lr],
+        outputs=classifier.negative_log_likelihood(y),
+        updates = updates,
+        givens={
+            x: train_set_x[index * batch_size: (index + 1) * batch_size],
+            y: train_set_y[index * batch_size: (index + 1) * batch_size]
+        },
+        allow_input_downcast=True
+    )
+    
     ###############
     # TRAIN MODEL #
     ###############
@@ -293,6 +310,8 @@ def test_network(n_layers, activation = T.tanh, learning_rate=0.01, L1_reg=0.00,
                                   # check every epoch
 
     best_validation_loss = numpy.inf
+    best_avg_cost = numpy.inf
+    best_training_loss = numpy.inf
     best_iter = 0
     test_score = 0.
     start_time = timeit.default_timer()
@@ -300,19 +319,32 @@ def test_network(n_layers, activation = T.tanh, learning_rate=0.01, L1_reg=0.00,
     epoch = 0
     done_looping = False
 
+    train_matrix = numpy.zeros(n_epochs)
     val_matrix = numpy.zeros(n_epochs)
     test_matrix = numpy.zeros(n_epochs)
     
     while (epoch < n_epochs) and (not done_looping):
         epoch = epoch + 1
+        #if(epoch > 1):
+            #learning_rate = numpy.exp(-0.9839659844716131)*learning_rate
+            #if(learning_rate < 0.00001):
+            #    learning_rate = 0.00001
+        #print(learning_rate)
         for minibatch_index in range(n_train_batches):
-
-            minibatch_avg_cost = train_model(minibatch_index)
+            
+            #average instead of lowest? paper used lowest
+            minibatch_avg_cost = train_model(minibatch_index, learning_rate)
+            if(minibatch_avg_cost < best_avg_cost):
+                best_avg_cost = minibatch_avg_cost
+                best_training_loss = train_loss(minibatch_index, learning_rate)
+            train_matrix[epoch-1] = best_training_loss
             # iteration number
             iter = (epoch - 1) * n_train_batches + minibatch_index
 
             if (iter + 1) % validation_frequency == 0:
                 # compute zero-one loss on validation set
+                
+                print(train_matrix[epoch-1])
                 validation_losses = [validate_model(i) for i
                                      in range(n_valid_batches)]
                 this_validation_loss = numpy.mean(validation_losses)
@@ -365,7 +397,17 @@ def test_network(n_layers, activation = T.tanh, learning_rate=0.01, L1_reg=0.00,
            os.path.split(__file__)[1] +
            ' ran for %.2fm' % ((end_time - start_time) / 60.)), file=sys.stderr)
     
-    numpy.savetxt("validation.csv", val_matrix, delimiter=",")
-    numpy.savetxt("test.csv", test_matrix, delimiter=",")
+    numpy.savetxt("train" + str(end_time) + ".csv", train_matrix, delimiter=",")
+    numpy.savetxt("validation" + str(end_time) + ".csv", val_matrix, delimiter=",")
+    numpy.savetxt("test" + str(end_time) + ".csv", test_matrix, delimiter=",")
     
-    return val_matrix, test_matrix
+    return train_matrix, val_matrix, test_matrix
+
+if __name__ == '__main__':
+    
+#test_network(n_layers, activation=T.Tanh, learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
+#            batch_size=20, n_hidden=500, verbose=False, Highway=False)0.1776272776349125
+    test_network(n_layers = 10, activation = T.nnet.relu, learning_rate=0.01, L2_reg=0.0001, n_epochs = 400, batch_size=20, n_hidden=71, verbose=True, Highway = False)
+    #test_network(n_layers = 20, n_epochs = 400, batch_size=20, n_hidden=50, verbose=True,
+    #                                  Highway = True)
+    #test_rnnslu2()

@@ -109,7 +109,6 @@ class HighwayLayer(object):
                     dtype=theano.config.floatX)
             """
             
-            
             b_T = theano.shared(value=b_T_values, name='b_T', borrow=True)
 
         self.W = W
@@ -488,3 +487,8 @@ class HiddenLayer(object):
         self.params = [self.W, self.b]
 
 """
+
+
+
+
+

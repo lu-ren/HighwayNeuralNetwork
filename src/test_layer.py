@@ -270,7 +270,7 @@ def test_network(n_layers, activation = T.tanh, learning_rate=0.01, L1_reg=0.00,
     # defined in `updates`
     train_model = theano.function(
         inputs=[index, lr],
-        outputs=cost,
+        outputs=[cost, classifier.negative_log_likelihood(y)],
         updates=updates,
         givens={
             x: train_set_x[index * batch_size: (index + 1) * batch_size],
@@ -278,7 +278,7 @@ def test_network(n_layers, activation = T.tanh, learning_rate=0.01, L1_reg=0.00,
         },
         allow_input_downcast=True
     )
-    
+    """
     train_loss = theano.function(
         inputs=[index,lr],
         outputs=classifier.negative_log_likelihood(y),
@@ -289,7 +289,7 @@ def test_network(n_layers, activation = T.tanh, learning_rate=0.01, L1_reg=0.00,
         },
         allow_input_downcast=True
     )
-    
+    """
     ###############
     # TRAIN MODEL #
     ###############
@@ -312,6 +312,7 @@ def test_network(n_layers, activation = T.tanh, learning_rate=0.01, L1_reg=0.00,
     best_validation_loss = numpy.inf
     best_avg_cost = numpy.inf
     best_training_loss = numpy.inf
+    avg_training_loss = numpy.zeros(n_train_batches)
     best_iter = 0
     test_score = 0.
     start_time = timeit.default_timer()
@@ -332,18 +333,18 @@ def test_network(n_layers, activation = T.tanh, learning_rate=0.01, L1_reg=0.00,
         #print(learning_rate)
         for minibatch_index in range(n_train_batches):
             
-            #average instead of lowest? paper used lowest
-            minibatch_avg_cost = train_model(minibatch_index, learning_rate)
-            if(minibatch_avg_cost < best_avg_cost):
-                best_avg_cost = minibatch_avg_cost
-                best_training_loss = train_loss(minibatch_index, learning_rate)
-            train_matrix[epoch-1] = best_training_loss
+            #average instead of lowest? 
+            minibatch_avg_cost, avg_training_loss[minibatch_index] = train_model(minibatch_index, learning_rate)
+            #if(minibatch_avg_cost < best_avg_cost):
+            #    best_avg_cost = minibatch_avg_cost
+            #    best_training_loss = train_loss(minibatch_index, learning_rate)
+            #train_matrix[epoch-1] = best_training_loss
             # iteration number
             iter = (epoch - 1) * n_train_batches + minibatch_index
 
             if (iter + 1) % validation_frequency == 0:
                 # compute zero-one loss on validation set
-                
+                train_matrix[epoch-1] = numpy.mean(avg_training_loss)
                 print(train_matrix[epoch-1])
                 validation_losses = [validate_model(i) for i
                                      in range(n_valid_batches)]
@@ -407,7 +408,7 @@ if __name__ == '__main__':
     
 #test_network(n_layers, activation=T.Tanh, learning_rate=0.01, L1_reg=0.00, L2_reg=0.0001, n_epochs=1000,
 #            batch_size=20, n_hidden=500, verbose=False, Highway=False)0.1776272776349125
-    test_network(n_layers = 10, activation = T.nnet.relu, learning_rate=0.01, L2_reg=0.0001, n_epochs = 400, batch_size=20, n_hidden=71, verbose=True, Highway = False)
+    test_network(n_layers = 10, activation = T.nnet.relu, learning_rate=0.01, L2_reg=0.0001, n_epochs = 400, batch_size=20, n_hidden=50, verbose=True, Highway = True)
     #test_network(n_layers = 20, n_epochs = 400, batch_size=20, n_hidden=50, verbose=True,
     #                                  Highway = True)
     #test_rnnslu2()

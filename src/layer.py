@@ -98,7 +98,7 @@ class HighwayLayer(object):
 
         # Initializaing b_T values
         if b_T is None:
-            b_T_values = -1.*numpy.ones(shape=(n_out,), dtype=theano.config.floatX)
+            b_T_values = -1.0*numpy.ones(shape=(n_out,), dtype=theano.config.floatX)
             """
             b_T_values = numpy.asarray(
                     rng.uniform(
@@ -109,6 +109,7 @@ class HighwayLayer(object):
                     dtype=theano.config.floatX)
             """
             
+            
             b_T = theano.shared(value=b_T_values, name='b_T', borrow=True)
 
         self.W = W
@@ -116,20 +117,19 @@ class HighwayLayer(object):
 
         self.W_T = W_T
         self.b_T = b_T
+        
+        
+        if activation is None:
+            H = T.dot(input, self.W) + self.b
+        else:
+            H = activation(T.dot(input, self.W) + self.b)
+        
+        
+        Th = T.nnet.sigmoid(T.dot(input, self.W_T) + self.b_T)
+        C = input * (1.0 - Th)
 
-        H = T.dot(input, self.W) + self.b
-
-        Th = T.dot(input, self.W_T) + self.b_T
-
-        c_intermediate = 1 - T.dot(input, self.W_T) + self.b_T
-        C = input * c_intermediate
-
-        lin_output = H * Th + C
-
-        self.output = (
-            lin_output if activation is None
-            else activation(lin_output)
-        )
+        self.output = H * Th + C
+        
         self.params = [self.W, self.b, self.W_T, self.b_T]
 
 
@@ -487,8 +487,3 @@ class HiddenLayer(object):
         self.params = [self.W, self.b]
 
 """
-
-
-
-
-
